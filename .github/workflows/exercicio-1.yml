@@ -8,7 +8,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    permissions:
+      issues: write
     steps:
       - name: Checar o repositório
         uses: actions/checkout@v2
@@ -28,7 +29,7 @@ jobs:
       - name: Criar Pull Request e fechar a Issue
         run: |
           set -e
-          echo "Criando Pull Request via API..."
+          echo "Iniciando criação do PR e fechamento da issue..."
 
           # Definir variáveis
           REPO_OWNER=$(echo ${{ github.repository }} | cut -d '/' -f 1)
@@ -38,8 +39,19 @@ jobs:
           TITLE="PR para adicionar diretório no servidor"
           BODY="Este PR adiciona o diretório /home/jaime/dev/front-end no servidor."
 
-          # Criar Pull Request
-          PR_JSON=$(curl -s -X POST \
+          echo "Variáveis:"
+          echo "REPO_OWNER: $REPO_OWNER"
+          echo "REPO_NAME: $REPO_NAME"
+          echo "BRANCH_HEAD: $BRANCH_HEAD"
+          echo "BRANCH_BASE: $BRANCH_BASE"
+          echo "TITLE: $TITLE"
+          echo "BODY: $BODY"
+
+           # Criar Pull Request
+          echo "Comando curl para criar PR:"
+          echo "curl -s -X POST -H \"Authorization: token ${{ secrets.GITHUB_TOKEN }}\" -H \"Content-Type: application/json\" -d '{ \"head\": \"$BRANCH_HEAD\", \"base\": \"$BRANCH_BASE\", \"title\": \"$TITLE\", \"body\": \"$BODY\" }' \"https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls\""
+
+          PR_RESPONSE=$(curl -s -X POST \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "{
@@ -50,15 +62,32 @@ jobs:
             }" \
             "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls")
           
-          PR_NUMBER=$(echo "$PR_JSON" | jq -r .number)
+          echo "Resposta da API para criação do PR: $PR_RESPONSE"
+          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
 
-           echo "Pull request criado com sucesso. Número: $PR_NUMBER"
+
+          if [[ $(echo "$PR_RESPONSE" | jq -r '. | tonumber') == 201 ]]; then
+            echo "Pull request criado com sucesso. Número: $PR_NUMBER"
+          else
+             echo "Erro ao criar o PR. Status code: $(echo "$PR_RESPONSE" | jq -r '. | tonumber')"
+             exit 1
+          fi
           # Fechar issue
            echo "Fechando Issue #1"
+          
+          echo "Comando curl para fechar Issue:"
+          echo "curl -s -X PATCH -H \"Authorization: token ${{ secrets.GITHUB_TOKEN }}\" -H \"Content-Type: application/json\" -d '{ \"state\": \"closed\", \"body\": \"Fechando issue com o PR #$PR_NUMBER\" }' \"https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/1\""
 
-           curl -s -X PATCH \
-           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-           -H "Content-Type: application/json" \
+          ISSUE_RESPONSE=$(curl -s -X PATCH \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
             -d "{ \"state\": \"closed\", \"body\": \"Fechando issue com o PR #$PR_NUMBER\" }" \
-           "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/1"
-          echo "Issue #1 fechada com sucesso."
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/1")
+          
+           echo "Resposta da API para fechamento da issue: $ISSUE_RESPONSE"
+           if [[ $(echo "$ISSUE_RESPONSE" | jq -r '. | tonumber') == 200 ]]; then
+             echo "Issue #1 fechada com sucesso."
+           else
+             echo "Erro ao fechar issue. Status code:  $(echo "$ISSUE_RESPONSE" | jq -r '. | tonumber')"
+              exit 1
+          fi
