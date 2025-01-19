@@ -1,4 +1,4 @@
-name: Criar diretório dev no Ubuntu
+name: Criar Diretório dev no Ubuntu
 
 on:
   push:
