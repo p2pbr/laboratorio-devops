@@ -38,7 +38,7 @@ jobs:
           BRANCH_HEAD="1-exercício-1-diretorio-dev-front-end"
           BRANCH_BASE="develop"
           TITLE="PR para adicionar diretório no servidor"
-          BODY="Este PR adiciona o diretório /home/jaime/dev/front-end no servidor."
+          BODY="Este PR adiciona o diretório /home/jaime/dev/front-end no servidor. Closes #1"
 
           echo "Variáveis:"
           echo "REPO_OWNER: $REPO_OWNER"
