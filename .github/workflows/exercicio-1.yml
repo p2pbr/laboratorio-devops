@@ -1,0 +1,29 @@
+name: Criar diretório dev no Ubuntu
+
+on:
+  push:
+    branches:
+      - 1-exercício-1-diretorio-dev-front-end  
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # A execução do job ocorrerá em uma máquina Ubuntu
+
+    steps:
+      - name: Checar o repositório
+        uses: actions/checkout@v2  # Baixa o código do repositório
+
+      - name: Configurar chave SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  # Usando a chave privada configurada no GitHub Secrets
+
+      - name: Criar diretório no servidor
+        run: |
+          set -e  # Faz com que o script pare imediatamente em caso de erro
+          echo "Iniciando conexão SSH..."
+          
+          # Tentando criar o diretório no servidor
+          ssh -o StrictHostKeyChecking=no jaime@servidores-linux.70-71-bc-12-b3-87@cloud.shellhub.io "mkdir -p /home/jaime/dev/front-end"
+          
+          echo "Diretório /home/jaime/dev/front-end criado com sucesso!"
