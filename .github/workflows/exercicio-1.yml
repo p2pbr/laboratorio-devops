@@ -62,6 +62,10 @@ jobs:
 
           # Verificando o código de status HTTP
           HTTP_STATUS=$(tail -n1 response.json)
+
+          # Exibir resposta para depuração
+          echo "Resposta da API para criação do PR: $(cat response.json)"
+
           if [[ "$HTTP_STATUS" != "201" ]]; then
             echo "Erro ao criar o PR. Status code: $HTTP_STATUS"
             echo "Resposta completa: $(cat response.json)"
@@ -71,4 +75,30 @@ jobs:
           # Extraindo o número do PR
           PR_NUMBER=$(cat response.json | jq -r .number)
           echo "Pull request criado com sucesso. Número: $PR_NUMBER"
-          echo "pr_nu
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+      - name: Fechar a Issue
+        if: steps.create_pr.outputs.pr_number != ''
+        run: |
+          set -e
+          PR_NUMBER="${{ steps.create_pr.outputs.pr_number }}"
+          echo "Fechando Issue #1 com PR número: $PR_NUMBER"
+
+          ISSUE_RESPONSE=$(curl -s -w "%{http_code}" -o issue_response.json -X PATCH \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{ \"state\": \"closed\", \"body\": \"Fechando issue com o PR #$PR_NUMBER\" }" \
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/1")
+
+          # Verificando o código de status HTTP
+          HTTP_STATUS=$(tail -n1 issue_response.json)
+
+          echo "Resposta da API para fechamento da issue: $(cat issue_response.json)"
+
+          if [[ "$HTTP_STATUS" != "200" ]]; then
+            echo "Erro ao fechar issue. Status code: $HTTP_STATUS"
+            echo "Resposta completa: $(cat issue_response.json)"
+            exit 1
+          fi
+
+          echo "Issue #1 fechada com sucesso."
