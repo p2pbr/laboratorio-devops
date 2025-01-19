@@ -3,7 +3,7 @@ name: Criar diretório dev no Ubuntu
 on:
   push:
     branches:
-      - 1-exercício-1-diretorio-dev-front-end  
+      - 1-exercício-1-diretorio-dev-front-end  # Quando a branch específica for empurrada
 
 jobs:
   deploy:
@@ -27,3 +27,18 @@ jobs:
           ssh -o StrictHostKeyChecking=no jaime@servidores-linux.70-71-bc-12-b3-87@cloud.shellhub.io "mkdir -p /home/jaime/dev/front-end"
           
           echo "Diretório /home/jaime/dev/front-end criado com sucesso!"
+
+      - name: Configurar GitHub CLI
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /usr/share/keyrings/githubcli-archive-keyring.gpg > /dev/null
+          sudo apt update
+          sudo apt install gh
+
+      - name: Criar Pull Request para a branch develop
+        run: |
+          gh auth login --with-token < ${{ secrets.GITHUB_TOKEN }}  # Faz login no GitHub CLI com token
+          gh pr create --base develop --head 1-exercício-1-diretorio-dev-front-end --title "PR para adicionar diretório no servidor" --body "Este PR adiciona o diretório /home/jaime/dev/front-end no servidor." --auto-merge
+
+      - name: Fechar a Issue 1
+        run: |
+          gh issue close 1 --repo p2pbr/laboratorio-devops  # Fechar a issue número 1 no repositório p2pbr/laboratorio-devops
