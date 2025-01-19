@@ -34,9 +34,11 @@ jobs:
           sudo apt update
           sudo apt install gh
 
+      - name: Fazer login no GitHub CLI
+        run: gh auth login --with-token ${{ secrets.GITHUB_TOKEN }}  # Faz login no GitHub CLI com token
+
       - name: Criar Pull Request para a branch develop
         run: |
-          gh auth login --with-token < ${{ secrets.GITHUB_TOKEN }}  # Faz login no GitHub CLI com token
           gh pr create --base develop --head 1-exercício-1-diretorio-dev-front-end --title "PR para adicionar diretório no servidor" --body "Este PR adiciona o diretório /home/jaime/dev/front-end no servidor." --auto-merge
 
       - name: Fechar a Issue 1
