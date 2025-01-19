@@ -3,29 +3,26 @@ name: Criar diretório dev no Ubuntu
 on:
   push:
     branches:
-      - 1-exercício-1-diretorio-dev-front-end  # Quando a branch específica for empurrada
+      - 1-exercício-1-diretorio-dev-front-end
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest  # A execução do job ocorrerá em uma máquina Ubuntu
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checar o repositório
-        uses: actions/checkout@v2  # Baixa o código do repositório
+        uses: actions/checkout@v2
 
       - name: Configurar chave SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  # Usando a chave privada configurada no GitHub Secrets
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Criar diretório no servidor
         run: |
-          set -e  # Faz com que o script pare imediatamente em caso de erro
+          set -e
           echo "Iniciando conexão SSH..."
-          
-          # Tentando criar o diretório no servidor
           ssh -o StrictHostKeyChecking=no jaime@servidores-linux.70-71-bc-12-b3-87@cloud.shellhub.io "mkdir -p /home/jaime/dev/front-end"
-          
           echo "Diretório /home/jaime/dev/front-end criado com sucesso!"
 
       - name: Configurar GitHub CLI
@@ -35,12 +32,20 @@ jobs:
           sudo apt install gh
 
       - name: Fazer login no GitHub CLI
-        run: gh auth login --with-token ${{ secrets.GITHUB_TOKEN }}  # Faz login no GitHub CLI com token
+        run: gh auth login --with-token ${{ secrets.GITHUB_TOKEN }}
 
       - name: Criar Pull Request para a branch develop
         run: |
-          gh pr create --base develop --head 1-exercício-1-diretorio-dev-front-end --title "PR para adicionar diretório no servidor" --body "Este PR adiciona o diretório /home/jaime/dev/front-end no servidor." --auto-merge
+           gh pr create \
+           --base develop \
+           --head 1-exercício-1-diretorio-dev-front-end \
+           --title "PR para adicionar diretório no servidor" \
+           --body "Este PR adiciona o diretório /home/jaime/dev/front-end no servidor." \
+           --auto-merge
 
-      - name: Fechar a Issue 1
+      - name: Fechar a Issue
         run: |
-          gh issue close 1 --repo p2pbr/laboratorio-devops  # Fechar a issue número 1 no repositório p2pbr/laboratorio-devops
+          set -e
+          echo "Fechando a issue #1..."
+          gh issue close 1 --repo ${{ github.repository }}
+          echo "Issue #1 fechada com sucesso."
