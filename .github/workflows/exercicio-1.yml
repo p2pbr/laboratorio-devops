@@ -48,11 +48,8 @@ jobs:
           echo "TITLE: $TITLE"
           echo "BODY: $BODY"
 
-           # Criar Pull Request
-          echo "Comando curl para criar PR:"
-          echo "curl -s -X POST -H \"Authorization: token ${{ secrets.GITHUB_TOKEN }}\" -H \"Content-Type: application/json\" -d '{ \"head\": \"$BRANCH_HEAD\", \"base\": \"$BRANCH_BASE\", \"title\": \"$TITLE\", \"body\": \"$BODY\" }' \"https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls\""
-
-          PR_RESPONSE=$(curl -s -X POST \
+          # Criar Pull Request
+          PR_RESPONSE=$(curl -s -w "%{http_code}" -o response.json -X POST \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "{
@@ -62,36 +59,16 @@ jobs:
               \"body\": \"$BODY\"
             }" \
             "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls")
-          
-          echo "Resposta da API para criação do PR: $PR_RESPONSE"
-          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
-           
-          if [[ $(echo "$PR_RESPONSE" | jq -r 'if .status then .status else 0 end') != 201 ]]; then
-              echo "Erro ao criar o PR. Status code: $(echo "$PR_RESPONSE" | jq -r 'if .status then .status else 0 end')"
-             exit 1
-           fi
-           echo "Pull request criado com sucesso. Número: $PR_NUMBER"
-           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
-      - name: Fechar a Issue
-        if: steps.create_pr.outputs.pr_number != ''
-        run: |
-          set -e
-          PR_NUMBER="${{ steps.create_pr.outputs.pr_number }}"
-          echo "Fechando Issue #1 com PR número: $PR_NUMBER"
-          
-          echo "Comando curl para fechar Issue:"
-          echo "curl -s -X PATCH -H \"Authorization: token ${{ secrets.GITHUB_TOKEN }}\" -H \"Content-Type: application/json\" -d '{ \"state\": \"closed\", \"body\": \"Fechando issue com o PR #$PR_NUMBER\" }' \"https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/1\""
+          # Verificando o código de status HTTP
+          HTTP_STATUS=$(tail -n1 response.json)
+          if [[ "$HTTP_STATUS" != "201" ]]; then
+            echo "Erro ao criar o PR. Status code: $HTTP_STATUS"
+            echo "Resposta completa: $(cat response.json)"
+            exit 1
+          fi
 
-          ISSUE_RESPONSE=$(curl -s -X PATCH \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{ \"state\": \"closed\", \"body\": \"Fechando issue com o PR #$PR_NUMBER\" }" \
-            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/1")
-          
-           echo "Resposta da API para fechamento da issue: $ISSUE_RESPONSE"
-           if [[ $(echo "$ISSUE_RESPONSE" | jq -r 'if .status then .status else 0 end') != 200 ]] ; then
-              echo "Erro ao fechar issue. Status code: $(echo "$ISSUE_RESPONSE" | jq -r 'if .status then .status else 0 end')"
-             exit 1
-           fi
-           echo "Issue #1 fechada com sucesso."
+          # Extraindo o número do PR
+          PR_NUMBER=$(cat response.json | jq -r .number)
+          echo "Pull request criado com sucesso. Número: $PR_NUMBER"
+          echo "pr_nu
