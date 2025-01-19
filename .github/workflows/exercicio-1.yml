@@ -32,8 +32,8 @@ jobs:
           echo "Iniciando criação do PR e fechamento da issue..."
 
           # Definir variáveis
-          REPO_OWNER=$(echo ${{ github.repository }} | cut -d '/' -f 1)
-          REPO_NAME=$(echo ${{ github.repository }} | cut -d '/' -f 2)
+          REPO_OWNER=$(echo "${{ github.repository }}" | cut -d '/' -f 1)
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
           BRANCH_HEAD="1-exercício-1-diretorio-dev-front-end"
           BRANCH_BASE="develop"
           TITLE="PR para adicionar diretório no servidor"
@@ -64,16 +64,15 @@ jobs:
           
           echo "Resposta da API para criação do PR: $PR_RESPONSE"
           PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
-
-
-          if [[ $(echo "$PR_RESPONSE" | jq -r '. | tonumber') == 201 ]]; then
-            echo "Pull request criado com sucesso. Número: $PR_NUMBER"
-          else
-             echo "Erro ao criar o PR. Status code: $(echo "$PR_RESPONSE" | jq -r '. | tonumber')"
+        
+         if [[ $(echo "$PR_RESPONSE" | jq -r 'if .status then .status else 0 end') == 201 ]] ; then
+             echo "Pull request criado com sucesso. Número: $PR_NUMBER"
+           else
+             echo "Erro ao criar o PR. Status code: $(echo "$PR_RESPONSE" | jq -r 'if .status then .status else 0 end')"
              exit 1
           fi
           # Fechar issue
-           echo "Fechando Issue #1"
+          echo "Fechando Issue #1"
           
           echo "Comando curl para fechar Issue:"
           echo "curl -s -X PATCH -H \"Authorization: token ${{ secrets.GITHUB_TOKEN }}\" -H \"Content-Type: application/json\" -d '{ \"state\": \"closed\", \"body\": \"Fechando issue com o PR #$PR_NUMBER\" }' \"https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/1\""
@@ -85,9 +84,9 @@ jobs:
             "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/1")
           
            echo "Resposta da API para fechamento da issue: $ISSUE_RESPONSE"
-           if [[ $(echo "$ISSUE_RESPONSE" | jq -r '. | tonumber') == 200 ]]; then
+           if [[ $(echo "$ISSUE_RESPONSE" | jq -r 'if .status then .status else 0 end') == 200 ]] ; then
              echo "Issue #1 fechada com sucesso."
-           else
-             echo "Erro ao fechar issue. Status code:  $(echo "$ISSUE_RESPONSE" | jq -r '. | tonumber')"
-              exit 1
-          fi
+            else
+              echo "Erro ao fechar issue. Status code: $(echo "$ISSUE_RESPONSE" | jq -r 'if .status then .status else 0 end')"
+             exit 1
+           fi
