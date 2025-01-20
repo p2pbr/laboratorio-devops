@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      pull-requests: write
     steps:
       - name: Checar o repositório
         uses: actions/checkout@v2
@@ -60,8 +61,8 @@ jobs:
             }" \
             "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls")
 
-          # Verificando o código de status HTTP
-          HTTP_STATUS=$(tail -n1 response.json)
+          # Verificando o código de status HTTP (extraindo do PR_RESPONSE)
+          HTTP_STATUS=$(echo "$PR_RESPONSE" | tail -n 1)
 
           # Exibir resposta para depuração
           echo "Resposta da API para criação do PR: $(cat response.json)"
@@ -84,6 +85,10 @@ jobs:
           PR_NUMBER="${{ steps.create_pr.outputs.pr_number }}"
           echo "Fechando Issue #1 com PR número: $PR_NUMBER"
 
+          # Definir variáveis novamente para o fechamento da issue
+          REPO_OWNER=$(echo "${{ github.repository }}" | cut -d '/' -f 1)
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
+
           ISSUE_RESPONSE=$(curl -s -w "%{http_code}" -o issue_response.json -X PATCH \
             -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
             -H "Content-Type: application/json" \
@@ -91,7 +96,7 @@ jobs:
             "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/1")
 
           # Verificando o código de status HTTP
-          HTTP_STATUS=$(tail -n1 issue_response.json)
+          HTTP_STATUS=$(echo "$ISSUE_RESPONSE" | tail -n1)
 
           echo "Resposta da API para fechamento da issue: $(cat issue_response.json)"
 
