@@ -1,0 +1,109 @@
+name: Criar Diretório dev no Ubuntu
+
+on:
+  push:
+    branches:
+      - 1-exercício-1-diretorio-dev-front-end
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checar o repositório
+        uses: actions/checkout@v2
+
+      - name: Configurar chave SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Criar diretório no servidor
+        run: |
+          set -e
+          echo "Iniciando conexão SSH..."
+          ssh -o StrictHostKeyChecking=no jaime@servidores-linux.70-71-bc-12-b3-87@cloud.shellhub.io "mkdir -p /home/jaime/dev/front-end"
+          echo "Diretório /home/jaime/dev/front-end criado com sucesso!"
+
+      - name: Criar Pull Request
+        id: create_pr
+        run: |
+          set -e
+          echo "Iniciando criação do PR..."
+
+          # Definir variáveis
+          REPO_OWNER=$(echo "${{ github.repository }}" | cut -d '/' -f 1)
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
+          BRANCH_HEAD="1-exercício-1-diretorio-dev-front-end"
+          BRANCH_BASE="develop"
+          TITLE="PR para adicionar diretório no servidor"
+          BODY="Este PR adiciona o diretório /home/jaime/dev/front-end no servidor. Closes #1"
+
+          echo "Variáveis:"
+          echo "REPO_OWNER: $REPO_OWNER"
+          echo "REPO_NAME: $REPO_NAME"
+          echo "BRANCH_HEAD: $BRANCH_HEAD"
+          echo "BRANCH_BASE: $BRANCH_BASE"
+          echo "TITLE: $TITLE"
+          echo "BODY: $BODY"
+
+          # Criar Pull Request
+          PR_RESPONSE=$(curl -s -w "%{http_code}" -o response.json -X POST \
+            -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"head\": \"$BRANCH_HEAD\",
+              \"base\": \"$BRANCH_BASE\",
+              \"title\": \"$TITLE\",
+              \"body\": \"$BODY\"
+            }" \
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls")
+
+          # Verificando o código de status HTTP (extraindo do PR_RESPONSE)
+          HTTP_STATUS=$(echo "$PR_RESPONSE" | tail -n 1)
+
+          # Exibir resposta para depuração
+          echo "Resposta da API para criação do PR: $(cat response.json)"
+
+          if [[ "$HTTP_STATUS" != "201" ]]; then
+            echo "Erro ao criar o PR. Status code: $HTTP_STATUS"
+            echo "Resposta completa: $(cat response.json)"
+            exit 1
+          fi
+
+          # Extraindo o número do PR
+          PR_NUMBER=$(cat response.json | jq -r .number)
+          echo "Pull request criado com sucesso. Número: $PR_NUMBER"
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+      - name: Fechar a Issue
+        if: steps.create_pr.outputs.pr_number != ''
+        run: |
+          set -e
+          PR_NUMBER="${{ steps.create_pr.outputs.pr_number }}"
+          echo "Fechando Issue #1 com PR número: $PR_NUMBER"
+
+          # Definir variáveis novamente para o fechamento da issue
+          REPO_OWNER=$(echo "${{ github.repository }}" | cut -d '/' -f 1)
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
+
+          ISSUE_RESPONSE=$(curl -s -w "%{http_code}" -o issue_response.json -X PATCH \
+            -H "Authorization: token ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{ \"state\": \"closed\", \"body\": \"Fechando issue com o PR #$PR_NUMBER\" }" \
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/1")
+
+          # Verificando o código de status HTTP
+          HTTP_STATUS=$(echo "$ISSUE_RESPONSE" | tail -n1)
+
+          echo "Resposta da API para fechamento da issue: $(cat issue_response.json)"
+
+          if [[ "$HTTP_STATUS" != "200" ]]; then
+            echo "Erro ao fechar issue. Status code: $HTTP_STATUS"
+            echo "Resposta completa: $(cat issue_response.json)"
+            exit 1
+          fi
+
+          echo "Issue #1 fechada com sucesso."
